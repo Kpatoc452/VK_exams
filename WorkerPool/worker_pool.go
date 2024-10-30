@@ -5,6 +5,15 @@ import (
 	"sync"
 )
 
+type WorkerPoolInterface interface {
+    AddWorker()
+    AddGroupWorker(countWorkers int)
+    DestroyWorker()
+    process(id int)
+    SendMsg(msg string)
+    Stop()
+}
+
 type WorkerPool struct{
 	msgChan      chan string
 	destroyChan     chan struct{}
@@ -15,7 +24,6 @@ type WorkerPool struct{
     currentId int
 	countWorkers int
 }
-
 
 
 func NewWorkerPool(opts ...Option) *WorkerPool{
