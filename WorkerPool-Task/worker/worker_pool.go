@@ -1,17 +1,20 @@
-package main
+package workerPool
 
 import (
 	"fmt"
 	"sync"
 )
 
-type WorkerPoolInterface interface {
+type WorkerPool interface {
     AddWorker()
+    AddGroupWorker(countWorkers int)
     DestroyWorker()
+    SendMsg(msg string)
+    GetCountWorkers() int
     Stop()
 }
 
-type WorkerPool struct{
+type workerPool struct{
 	msgChan      chan string
 	destroyChan     chan struct{}
 	waitGroupWorkers sync.WaitGroup
@@ -23,8 +26,8 @@ type WorkerPool struct{
 }
 
 
-func NewWorkerPool(opts ...Option) *WorkerPool{
-    return &WorkerPool{
+func New(opts ...Option) WorkerPool{
+    return &workerPool{
         opts: NewOptionWP(opts...),
         msgChan: make(chan string),
         destroyChan: make(chan struct{}),
@@ -32,7 +35,7 @@ func NewWorkerPool(opts ...Option) *WorkerPool{
 }
 
 
-func(wp *WorkerPool) AddWorker(){
+func(wp *workerPool) AddWorker(){
     wp.mutex.Lock()
     defer wp.mutex.Unlock()
     if wp.countWorkers < wp.opts.Max{
@@ -47,7 +50,7 @@ func(wp *WorkerPool) AddWorker(){
 }
 
 
-func (wp *WorkerPool)AddGroupWorker(countWorkers int){
+func (wp *workerPool)AddGroupWorker(countWorkers int){
     wp.mutex.Lock()
     defer wp.mutex.Unlock()
     for range countWorkers {        
@@ -64,7 +67,7 @@ func (wp *WorkerPool)AddGroupWorker(countWorkers int){
 }
 
 
-func(wp *WorkerPool) DestroyWorker(){
+func(wp *workerPool) DestroyWorker(){
     wp.mutex.Lock()
     defer wp.mutex.Unlock()
     if wp.countWorkers > 0{
@@ -75,7 +78,7 @@ func(wp *WorkerPool) DestroyWorker(){
 }
 
 
-func(wp *WorkerPool) process(id int){
+func(wp *workerPool) process(id int){
     defer wp.waitGroupWorkers.Done()
     for { 
         select{
@@ -91,32 +94,23 @@ func(wp *WorkerPool) process(id int){
 }
 
 
-func(wp *WorkerPool) Stop(){
+func(wp *workerPool) Stop(){
     close(wp.destroyChan)
     wp.waitGroupWorkers.Wait()
     close(wp.msgChan)
-    
+    wp.countWorkers = 0
 }
 
 
-func(wp *WorkerPool) SendMsg(msg string){
-    wp.msgChan <- msg
+func(wp *workerPool) SendMsg(msg string){
+    wp.mutex.Lock()
+    defer wp.mutex.Unlock()
+    if wp.countWorkers > 0{
+        wp.msgChan <- msg
+    }
 }
 
 
-func main(){
-    pool := NewWorkerPool()
-    pool.DestroyWorker()
-
-    pool.AddGroupWorker(3)
-    pool.SendMsg("hello")
-    pool.SendMsg("world")
-    pool.AddWorker()
-    pool.SendMsg("Hi")
-    pool.SendMsg("bye")
-    pool.DestroyWorker()
-    pool.DestroyWorker()
-    pool.SendMsg("SOME MSSSSSG")
-
-    pool.Stop()
+func(wp *workerPool) GetCountWorkers() int {
+    return wp.countWorkers
 }
