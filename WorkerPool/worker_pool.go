@@ -3,60 +3,62 @@ package main
 import (
 	"fmt"
 	"sync"
-
-	"github.com/sirupsen/logrus"
 )
 
-type WorkerPool struct {
+type WorkerPool struct{
 	msgChan      chan string
 	destroyChan     chan struct{}
 	waitGroupWorkers sync.WaitGroup
-    
-    maxWorkers int
 
     mutex sync.Mutex
+    opts OptionWP
     currentId int
 	countWorkers int
 }
 
-func NewWorkerPool() *WorkerPool{
+
+
+func NewWorkerPool(opts ...Option) *WorkerPool{
     return &WorkerPool{
+        opts: NewOptionWP(opts...),
         msgChan: make(chan string),
         destroyChan: make(chan struct{}),
         countWorkers: 0,
-        maxWorkers: 10,
     }
 }
+
 
 func(wp *WorkerPool) AddWorker(){
     wp.mutex.Lock()
     defer wp.mutex.Unlock()
-    if wp.countWorkers < wp.maxWorkers{
+    if wp.countWorkers < wp.opts.Max{
         wp.waitGroupWorkers.Add(1)
         
         wp.countWorkers++
         wp.currentId++
         
         go wp.process(wp.currentId)
-        logrus.Debugf("[ADD] Worker %d created", wp.currentId)
+        wp.opts.Logger.Debugf("[ADD] Worker %d created", wp.currentId)
     }
 }
 
-func (wp *WorkerPool)AddGroupWorker(count int){
+
+func (wp *WorkerPool)AddGroupWorker(countWorkers int){
     wp.mutex.Lock()
     defer wp.mutex.Unlock()
-    for range count {        
-        if wp.countWorkers < wp.maxWorkers{
+    for range countWorkers {        
+        if wp.countWorkers < wp.opts.Max{
             wp.waitGroupWorkers.Add(1)
             
             wp.countWorkers++
             wp.currentId++
             
             go wp.process(wp.currentId)
-            logrus.Debugf("[ADD] Worker %d created", wp.currentId)
+            wp.opts.Logger.Debugf("[ADD] Worker %d created", wp.currentId)
         }
     }
 }
+
 
 func(wp *WorkerPool) DestroyWorker(){
     wp.mutex.Lock()
@@ -68,20 +70,22 @@ func(wp *WorkerPool) DestroyWorker(){
     }
 }
 
+
 func(wp *WorkerPool) process(id int){
     defer wp.waitGroupWorkers.Done()
     for { 
         select{
         case msg := <-wp.msgChan:
             fmt.Printf("[MESSAGE] WorkerId: %d, Msg: %s\n", id, msg)
-            logrus.Debugf("Worker %d did the job", id)
+            wp.opts.Logger.Debugf("Worker %d did the job", id)
         case <-wp.destroyChan:
             fmt.Printf("[DELETE] Worker %d destroyed\n", id)
-            logrus.Debugf("[DELETE] Worker %d destroyed\n", id)
+            wp.opts.Logger.Debugf("[DELETE] Worker %d destroyed\n", id)
             return
         }
     }
 }
+
 
 func(wp *WorkerPool) Stop(){
     close(wp.destroyChan)
@@ -90,9 +94,11 @@ func(wp *WorkerPool) Stop(){
     
 }
 
+
 func(wp *WorkerPool) SendMsg(msg string){
     wp.msgChan <- msg
 }
+
 
 func main(){
     pool := NewWorkerPool()
