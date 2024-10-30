@@ -11,6 +11,7 @@ type WorkerPool struct {
 	msgChan      chan string
 	destroyChan     chan struct{}
 	waitGroupWorkers sync.WaitGroup
+    
     maxWorkers int
 
     mutex sync.Mutex
@@ -28,44 +29,42 @@ func NewWorkerPool() *WorkerPool{
 }
 
 func(wp *WorkerPool) AddWorker(){
+    wp.mutex.Lock()
+    defer wp.mutex.Unlock()
     if wp.countWorkers < wp.maxWorkers{
         wp.waitGroupWorkers.Add(1)
         
-        wp.mutex.Lock()
         wp.countWorkers++
         wp.currentId++
         
         go wp.process(wp.currentId)
         logrus.Debugf("[ADD] Worker %d created", wp.currentId)
-        wp.mutex.Unlock()
     }
 }
 
 func (wp *WorkerPool)AddGroupWorker(count int){
+    wp.mutex.Lock()
+    defer wp.mutex.Unlock()
     for range count {        
-            if wp.countWorkers < wp.maxWorkers{
+        if wp.countWorkers < wp.maxWorkers{
             wp.waitGroupWorkers.Add(1)
-        
-            wp.mutex.Lock()
+            
             wp.countWorkers++
             wp.currentId++
             
             go wp.process(wp.currentId)
             logrus.Debugf("[ADD] Worker %d created", wp.currentId)
-            wp.mutex.Unlock()
         }
     }
 }
 
 func(wp *WorkerPool) DestroyWorker(){
-    if wp.mutex.Lock(); wp.countWorkers > 0{
-        wp.mutex.Unlock()
-
+    wp.mutex.Lock()
+    defer wp.mutex.Unlock()
+    if wp.countWorkers > 0{
         wp.destroyChan<-struct{}{}
 
-        wp.mutex.Lock()
         wp.countWorkers--
-        wp.mutex.Unlock()
     }
 }
 
@@ -97,7 +96,7 @@ func(wp *WorkerPool) SendMsg(msg string){
 
 func main(){
     pool := NewWorkerPool()
-    
+    pool.DestroyWorker()
 
     pool.AddGroupWorker(3)
     pool.SendMsg("hello")
