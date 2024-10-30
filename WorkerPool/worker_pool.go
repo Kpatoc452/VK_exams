@@ -11,6 +11,7 @@ type WorkerPool struct {
 	msgChan      chan string
 	destroyChan     chan struct{}
 	waitGroupWorkers sync.WaitGroup
+    maxWorkers int
 
     mutex sync.Mutex
     currentId int
@@ -22,25 +23,14 @@ func NewWorkerPool() *WorkerPool{
         msgChan: make(chan string),
         destroyChan: make(chan struct{}),
         countWorkers: 0,
+        maxWorkers: 10,
     }
 }
 
 func(wp *WorkerPool) AddWorker(){
-    wp.waitGroupWorkers.Add(1)
-    
-    wp.mutex.Lock()
-    wp.countWorkers++
-    wp.currentId++
-    
-    go wp.process(wp.currentId)
-    logrus.Debugf("[ADD] Worker %d created", wp.currentId)
-    wp.mutex.Unlock()
-}
-
-func (wp *WorkerPool)AddGroupWorker(count int){
-    for range count {        
+    if wp.countWorkers < wp.maxWorkers{
         wp.waitGroupWorkers.Add(1)
-    
+        
         wp.mutex.Lock()
         wp.countWorkers++
         wp.currentId++
@@ -48,6 +38,22 @@ func (wp *WorkerPool)AddGroupWorker(count int){
         go wp.process(wp.currentId)
         logrus.Debugf("[ADD] Worker %d created", wp.currentId)
         wp.mutex.Unlock()
+    }
+}
+
+func (wp *WorkerPool)AddGroupWorker(count int){
+    for range count {        
+            if wp.countWorkers < wp.maxWorkers{
+            wp.waitGroupWorkers.Add(1)
+        
+            wp.mutex.Lock()
+            wp.countWorkers++
+            wp.currentId++
+            
+            go wp.process(wp.currentId)
+            logrus.Debugf("[ADD] Worker %d created", wp.currentId)
+            wp.mutex.Unlock()
+        }
     }
 }
 
