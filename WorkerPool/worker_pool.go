@@ -7,10 +7,7 @@ import (
 
 type WorkerPoolInterface interface {
     AddWorker()
-    AddGroupWorker(countWorkers int)
     DestroyWorker()
-    process(id int)
-    SendMsg(msg string)
     Stop()
 }
 
