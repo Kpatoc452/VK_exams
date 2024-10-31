@@ -1,6 +1,6 @@
 package workerPool
 
-import "github.com/Kpatoc452/VK_exams.git/WorkerPool-Task/logger"
+import "github.com/Kpatoc452/VK_exams/WorkerPool-Task/logger"
 
 
 type OptionWP struct{

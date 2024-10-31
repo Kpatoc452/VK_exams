@@ -1,4 +1,4 @@
-module github.com/Kpatoc452/VK_exams.git/WorkerPool-Task
+module github.com/Kpatoc452/VK_exams/WorkerPool-Task
 
 go 1.23.1
 

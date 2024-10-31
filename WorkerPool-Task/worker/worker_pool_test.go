@@ -3,6 +3,8 @@ package workerPool
 import (
 	"bufio"
 	"os"
+	"runtime"
+	"sync"
 	"testing"
 )
 
@@ -122,7 +124,7 @@ func TestMixSendAddDestroy(t *testing.T){
 
 	animals, err := readLines("animals.txt")
 	if err != nil{
-		t.Error("wrong in readlines")
+		t.Error("Wrong in readlines")
 	}
 
 	for i, msg := range animals{
@@ -139,4 +141,37 @@ func TestMixSendAddDestroy(t *testing.T){
 	}
 
 	wp.Stop()
+}
+
+func TestGorutinesWorker(t *testing.T){
+	countGoroutines := runtime.GOMAXPROCS(0)
+	countWorkers := 10
+
+	msgs, err := readLines("animals.txt")
+	if err != nil{ 
+		t.Errorf("Wrong in readlines")
+	}
+	
+
+	wp := New()
+
+	wp.AddGroupWorker(countWorkers)
+
+	var wg sync.WaitGroup
+
+	for range countGoroutines{
+		wg.Add(1)
+		go pingWorker(wp, msgs, &wg)
+	}
+
+	wg.Wait()
+	wp.Stop()
+
+}
+
+func pingWorker(wp WorkerPool, msgs []string, wg *sync.WaitGroup){
+	defer wg.Done()
+	for _, msg := range msgs{
+		wp.SendMsg(msg)
+	}
 }

@@ -1,7 +1,7 @@
 package main
 
 import (
-	workerPool "github.com/Kpatoc452/VK_exams.git/WorkerPool-Task/worker"
+	workerPool "github.com/Kpatoc452/VK_exams/WorkerPool-Task/worker"
 )
 
 func main(){
